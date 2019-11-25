@@ -12,6 +12,7 @@ Options:
 
 from docopt import docopt
 import pandas as pd
+import urllib
 
 
 class UrlHandler:
@@ -39,6 +40,19 @@ class FileHandler:
         return out
 
 
+def process_website(url, regex_list):
+    f = None
+    try:
+        f = urllib.request.urlopen(url)
+    except:
+        print("url cannot be opened")
+    finally:
+        if f:
+            myfile = f.read()
+            print(myfile)
+    return
+
+
 if __name__ == '__main__':
     arguments = docopt(__doc__, version='DEMO 1.0')
     # I assume the arguments are the files containing urls and regex
@@ -56,8 +70,8 @@ if __name__ == '__main__':
         flag_main_loop = True
 
     while flag_main_loop:
-        v = url_handler.fetch_first()
-        print(v)
+        url_link = url_handler.fetch_first()
+        process_website(url_link, regex_list)
 
         if not url_handler.has_data():
             flag_main_loop = False
