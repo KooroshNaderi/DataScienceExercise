@@ -11,6 +11,7 @@ Options:
 """
 
 from docopt import docopt
+import pandas as pd
 
 def FetchLines(filename):
     with open(filename) as f:
@@ -28,7 +29,7 @@ if __name__ == '__main__':
         regex_file = arguments['--regex']
         # I am reading the files and keeping a list of [urls,regex] to process, however if url_file is a big data
         # using pandas is a better solution, not fetching all the info into memory
-        url_list = FetchLines(url_file)
+        url_list = df = pd.read_csv(url_file, header=None, encoding='utf-8', delimiter='\n')
         regex_list = FetchLines(regex_file)
         flag_main_loop = True
 
