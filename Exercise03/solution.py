@@ -11,7 +11,9 @@ Options:
 """
 from multiprocessing import Process, Queue
 from docopt import docopt
-import sys, os
+import sys
+import os
+from datetime import datetime
 
 verbose = 1
 
@@ -20,7 +22,7 @@ class UrlDataFrameHandler:
     def __init__(self, file_name):
         import pandas as pd
         self.file_name = file_name
-        self.url_df_handle = pd.read_csv(url_file, header=None, encoding='utf-8', delimiter='\n')
+        self.url_df_handle = pd.read_csv(self.file_name, header=None, encoding='utf-8', delimiter='\n')
         self.index_on_df = 0
 
     def fetch_first(self):
@@ -49,24 +51,23 @@ def ret_error(str1, str2):
     return 1 - s.ratio()
 
 
-def is_match(worker_id, Text, RE):
+def is_match(_worker_id, _text, _re):
     import re
-    from datetime import datetime
 
     out = {}
 
-    out['worker_id'] = worker_id
+    out['worker_id'] = _worker_id
     time_start = datetime.now()
     out['time'] = time_start.ctime()
-    out['RE'] = RE
-    p = re.compile(RE)
+    out['RE'] = _re
+    p = re.compile(_re)
 
-    x = p.search(Text)
+    x = p.search(_text)
     if x:
         out['error'] = 0
         out['matched-string'] = x.group(0)
     else:
-        out['error'] = ret_error(Text, RE)
+        out['error'] = ret_error(_text, _re)
         out['matched-string'] = ''
 
     out['deltatime'] = (datetime.now() - time_start).total_seconds()
@@ -90,12 +91,11 @@ def fetch_text_from_url(_url):
             _url_exist = True
     return _text, _url_exist
 
-
+import signal
 # this function gets the text and process regex_value value on it
-def process_text(_worker_id, _output_queue, _url, _url_exist, _text, _regex_value):
-    log = {}
+def process_text(_worker_id, jobs, _output_queue, _url, _url_exist, _text, _regex_value):
     try:
-        from datetime import datetime
+        log = {}
 
         if not _url_exist:
             log['worker_id'] = _worker_id
@@ -110,16 +110,10 @@ def process_text(_worker_id, _output_queue, _url, _url_exist, _text, _regex_valu
             log = is_match(_worker_id, _text, _regex_value)
             log['url'] = _url
             log['url-code'] = 0  # url ok
-        _output_queue.put(log, block=False)
-    except KeyboardInterrupt:
-        if verbose:
-            print("Keyboard interrupt in process: ", _worker_id)
-    except Exception as _e:
-        if verbose:
-            print("Interrupted", _worker_id)
-    finally:
-        if verbose:
-            print("cleaning up thread: ", _worker_id)
+        _output_queue.put(log)
+    except:
+        os.kill(os.getpid(), signal.SIG_DFL)
+        pass
     return
 
 
@@ -156,7 +150,6 @@ if __name__ == '__main__':
 
         max_num_workers = 5      # maximum number of workers for assigning jobs
         log_queue = Queue()      # a queue for logging the worker's outputs
-        log_queue.cancel_join_thread()
 
         index_on_regex_list = 0  # index moving on regex list for different urls
         url_link = ""            # the current url under processing
@@ -174,9 +167,11 @@ if __name__ == '__main__':
                     url_link = url_handler.fetch_first()
                     text, url_exist = fetch_text_from_url(url_link)
 
-                p = Process(target=process_text,
-                            args=(worker_id, log_queue, url_link, url_exist, text, regex_list[index_on_regex_list]),)
-                p.daemon = True
+                p = Process(
+                    target=process_text,
+                    args=(worker_id, jobs, log_queue, url_link, url_exist, text, regex_list[index_on_regex_list]),
+                    )
+
                 jobs.append(p)
                 p.start()
 
@@ -187,9 +182,15 @@ if __name__ == '__main__':
                 if index_on_regex_list >= len(regex_list):
                     index_on_regex_list = 0
 
-            for p in jobs:
-                print(log_queue.get(p))
-                p.join(1.0)
+            for i in range(0, len(jobs)):
+                jobs[i].join(timeout=1.0)
+            try:
+                for p in jobs:
+                    if not p.is_alive() and not log_queue.empty():
+                        print(log_queue.get_nowait())
+            except Exception as e:
+                # print(e)
+                pass
 
             jobs.clear()
             if not url_handler.has_data():
@@ -206,3 +207,4 @@ if __name__ == '__main__':
         if verbose:
             print('Done')
         handle_error(log_queue)
+
