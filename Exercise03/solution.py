@@ -11,13 +11,9 @@ Options:
 """
 from multiprocessing import Process, Queue
 from docopt import docopt
-import urllib
-import re
-from difflib import SequenceMatcher
-from datetime import datetime
 import sys, os
 
-verbose = 0
+verbose = 1
 
 class UrlDataFrameHandler:
     def __init__(self, file_name):
@@ -46,11 +42,16 @@ class FileHandler:
 
 
 def ret_error(str1, str2):
+    from difflib import SequenceMatcher
+
     s = SequenceMatcher(None, str1, str2)
     return 1 - s.ratio()
 
 
 def is_match(worker_id, Text, RE):
+    import re
+    from datetime import datetime
+
     out = {}
 
     out['worker_id'] = worker_id
@@ -72,6 +73,8 @@ def is_match(worker_id, Text, RE):
 
 
 def fetch_text_from_url(_url):
+    import urllib
+
     f = None
     _text = ""
     _url_exist = False
@@ -88,11 +91,10 @@ def fetch_text_from_url(_url):
 
 # this function gets the text and process regex_value value on it
 def process_text(_worker_id, _output_queue, _url, _url_exist, _text, _regex_value):
-    #lock = Lock()
-    #lock.acquire()
-
+    log = {}
     try:
-        log = {}
+        from datetime import datetime
+
         if not _url_exist:
             log['worker_id'] = _worker_id
             log['time'] = datetime.now().ctime()
@@ -110,19 +112,24 @@ def process_text(_worker_id, _output_queue, _url, _url_exist, _text, _regex_valu
     except KeyboardInterrupt:
         if verbose:
             print("Keyboard interrupt in process: ", _worker_id)
+        #_output_queue.close()
+    except Exception as _e:
+        print(_e)
+        #_output_queue.close()
     finally:
         if verbose:
             print("cleaning up thread: ", _worker_id)
+        #_output_queue.close()
     return
 
-
 if __name__ == '__main__':
-    arguments = docopt(__doc__, version='DEMO 1.0')
-    # I assume the arguments are the files containing urls and regex
     jobs = []
+    log_queue = None
     try:
-        regex_list = []
-        url_handler = None
+        arguments = docopt(__doc__, version='DEMO 1.0')
+        # I assume the arguments are the files containing urls and regex
+        regex_list = []        # a list contains of regex strings
+        url_handler = None     # a handler to data-frame containing urls
         flag_main_loop = False
         if arguments['--url'] and arguments['--regex']:
             url_file = arguments['--url']
@@ -134,13 +141,16 @@ if __name__ == '__main__':
             regex_list = FileHandler.fetch_lines(regex_file)
             flag_main_loop = True
 
-        log_queue = Queue()
-        max_num_workers = 5
+        max_num_workers = 5     # maximum number of workers for assigning jobs
+        log_queue = Queue()     # a queue for logging the worker's outputs
 
-        index_on_regex_list = 0
-        url_link = ""
-        text = ""
-        url_exist = False
+        index_on_regex_list = 0 # index moving on regex list for different urls
+        url_link = ""           # the current url under processing
+        text = ""               # the text loaded from url
+        url_exist = False       # a boolean determining the url is valid or not
+        if verbose:
+            print(".... started processing the urls .....")
+
         while flag_main_loop:
             # assign workers to the jobs
             for worker_id in range(max_num_workers):
@@ -152,10 +162,10 @@ if __name__ == '__main__':
 
                 p = Process(target=process_text,
                             args=(worker_id, log_queue, url_link, url_exist, text, regex_list[index_on_regex_list]))
-                #p.daemon = True
+                p.daemon = True
                 jobs.append(p)
                 p.start()
-
+                
                 if url_exist:
                     index_on_regex_list += 1
                 else:
@@ -169,15 +179,42 @@ if __name__ == '__main__':
             jobs.clear()
             if not url_handler.has_data():
                 flag_main_loop = False
-    except:
-        #for p in jobs:
-        #    p.terminate()
-        #    #print(log_queue.get(p))
+    except KeyboardInterrupt and SystemExit:
+        key_interrupt = 1
+        print("comes here")
+        log_queue.close()
+        for p in jobs:
+            if not p is None and p:
+                p.terminate()
 
         print('Interrupted')
         try:
             sys.exit(0)
         except SystemExit:
             os._exit(0)
+    except Exception as e:
+        key_interrupt = 1
+        if verbose:
+            print(e)
+        if not log_queue is None:
+            log_queue.close()
+        for p in jobs:
+            if not p is None and p:
+                p.terminate()
+        print('Interrupted')
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)
     finally:
-        print('Done')
+        if not log_queue is None:
+            log_queue.close()
+        for p in jobs:
+            if not p is None and p:
+                p.terminate()
+        if verbose:
+            print('Done')
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)
