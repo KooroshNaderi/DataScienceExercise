@@ -9,15 +9,15 @@ Options:
     -h --help  Show this screen.
     -v --version  Show version.
 """
-
+from multiprocessing import Process, Queue
 from docopt import docopt
 import urllib
 import re
 from difflib import SequenceMatcher
 from datetime import datetime
-from multiprocessing import Process, Queue
-from threading import Lock
 import sys, os
+
+verbose = 0
 
 class UrlDataFrameHandler:
     def __init__(self, file_name):
@@ -88,10 +88,11 @@ def fetch_text_from_url(_url):
 
 # this function gets the text and process regex_value value on it
 def process_text(_worker_id, _output_queue, _url, _url_exist, _text, _regex_value):
-    lock = Lock()
-    lock.acquire()
-    log = {}
+    #lock = Lock()
+    #lock.acquire()
+
     try:
+        log = {}
         if not _url_exist:
             log['worker_id'] = _worker_id
             log['time'] = datetime.now().ctime()
@@ -99,44 +100,26 @@ def process_text(_worker_id, _output_queue, _url, _url_exist, _text, _regex_valu
             log['error'] = 1
             log['matched-string'] = ''
             log['deltatime'] = 0
-            log['Interrupted'] = 0
             log['url'] = _url
             log['url-code'] = 404 # url not found
         else:
             log = is_match(_worker_id, _text, _regex_value)
             log['url'] = _url
             log['url-code'] = 0 # url ok
-    except:
-        log['worker_id'] = _worker_id
-        log['time'] = datetime.now().ctime()
-        log['RE'] = ''
-        log['error'] = 1
-        log['matched-string'] = ''
-        log['deltatime'] = 0
-        log['Interrupted'] = 0
-        log['url'] = _url
-        log['url-code'] = -1
-        log['Interrupted'] = 1
         _output_queue.put(log)
-        lock.release()
-        try:
-            sys.exit(0)
-        except SystemExit:
-            os._exit(0)
+    except KeyboardInterrupt:
+        if verbose:
+            print("Keyboard interrupt in process: ", _worker_id)
     finally:
-        log['Interrupted'] = 0
-        _output_queue.put(log)
-        lock.release()
+        if verbose:
+            print("cleaning up thread: ", _worker_id)
     return
 
 
 if __name__ == '__main__':
     arguments = docopt(__doc__, version='DEMO 1.0')
     # I assume the arguments are the files containing urls and regex
-    lock = Lock()
-    lock.acquire()
     jobs = []
-    log_queue = Queue()
     try:
         regex_list = []
         url_handler = None
@@ -151,17 +134,14 @@ if __name__ == '__main__':
             regex_list = FileHandler.fetch_lines(regex_file)
             flag_main_loop = True
 
-        results = []
-
+        log_queue = Queue()
         max_num_workers = 5
 
         index_on_regex_list = 0
         url_link = ""
         text = ""
         url_exist = False
-
         while flag_main_loop:
-
             # assign workers to the jobs
             for worker_id in range(max_num_workers):
                 if index_on_regex_list == 0:
@@ -172,7 +152,7 @@ if __name__ == '__main__':
 
                 p = Process(target=process_text,
                             args=(worker_id, log_queue, url_link, url_exist, text, regex_list[index_on_regex_list]))
-                p.daemon = True
+                #p.daemon = True
                 jobs.append(p)
                 p.start()
 
@@ -189,16 +169,15 @@ if __name__ == '__main__':
             jobs.clear()
             if not url_handler.has_data():
                 flag_main_loop = False
-    except KeyboardInterrupt:
+    except:
         #for p in jobs:
-        #    p.join()
+        #    p.terminate()
         #    #print(log_queue.get(p))
 
         print('Interrupted')
-        lock.release()
         try:
             sys.exit(0)
         except SystemExit:
             os._exit(0)
     finally:
-        lock.release()
+        print('Done')
