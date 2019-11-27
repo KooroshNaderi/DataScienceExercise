@@ -11,7 +11,7 @@ def ret_error(str1, str2):
     return 1 - s.ratio()
 
 
-def is_match(_worker_id, _text, _re):
+def is_match(_text, _re, _worker_id=0):
     import re                            # load lib here to handle errors caused by ctrl+c
 
     out = {}

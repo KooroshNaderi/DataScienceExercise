@@ -40,7 +40,7 @@ def process_text(_worker_id, _output_queue, _url, _url_exist, _text, _regex_valu
             log['url'] = _url                      # the under process url
             log['url-code'] = 404                  # url code determining whether it exists (0) or not (404)
         else:
-            log = is_match(_worker_id, _text, _regex_value)
+            log = is_match(_text, _regex_value, _worker_id)
             log['url'] = _url
             log['url-code'] = 0
         _output_queue.put(log)
