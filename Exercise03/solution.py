@@ -30,20 +30,19 @@ def handle_error(_log_queue):
 def process_text(_worker_id, _output_queue, _url, _url_exist, _text, _regex_value):
     try:
         log = {}
-
         if not _url_exist:
-            log['worker_id'] = _worker_id
-            log['time'] = get_time_date_format()
-            log['RE'] = ''
-            log['error'] = 1
-            log['matched-string'] = ''
-            log['deltatime'] = 0
-            log['url'] = _url
-            log['url-code'] = 404  # url not found
+            log['worker_id'] = _worker_id          # the id of worker
+            log['time'] = get_time_date_format()   # starting time of the process
+            log['RE'] = ''                         # the regular expression under process
+            log['error'] = 1                       # error between re and url text
+            log['matched-string'] = ''             # the first matched string in the text
+            log['deltatime'] = 0                   # the time in seconds taken for the process
+            log['url'] = _url                      # the under process url
+            log['url-code'] = 404                  # url code determining whether it exists (0) or not (404)
         else:
             log = is_match(_worker_id, _text, _regex_value)
             log['url'] = _url
-            log['url-code'] = 0  # url ok
+            log['url-code'] = 0
         _output_queue.put(log)
     except:
         os_kill_process()
