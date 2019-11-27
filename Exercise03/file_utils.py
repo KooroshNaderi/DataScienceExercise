@@ -1,6 +1,6 @@
 class UrlDataFrameHandler:
     def __init__(self, file_name):
-        import pandas as pd
+        import pandas as pd  # in order to handle errors cause by ctrl+c, it is needed to import pandas here!
 
         self.file_name = file_name
         self.url_df_handle = pd.read_csv(self.file_name, header=None, encoding='utf-8', delimiter='\n')

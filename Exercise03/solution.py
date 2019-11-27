@@ -53,8 +53,8 @@ def process_text(_worker_id, _output_queue, _url, _url_exist, _text, _regex_valu
 
 
 def multi_process_urls(_url_file, _regex_file, _max_num_workers):
-    regex_list = []  # a list contains of regex strings
-    url_handler = None  # a handler to data-frame containing urls
+    regex_list = []           # a list contains of regex strings
+    url_handler = None        # a handler to data-frame containing urls
     flag_main_loop = False
     if not (_url_file is None) and not (_regex_file is None):
         # I use pandas for reading urls to handle huge amount of urls in the big data file
@@ -64,12 +64,12 @@ def multi_process_urls(_url_file, _regex_file, _max_num_workers):
         flag_main_loop = True
 
     jobs = []
-    log_queue = Queue()  # a queue for logging the worker's outputs
+    log_queue = Queue()      # a queue for logging the worker's outputs
 
     index_on_regex_list = 0  # index moving on regex list for different urls
-    url_link = ""  # the current url under processing
-    text = ""  # the text loaded from url
-    url_exist = False  # a boolean determining the url is valid or not
+    url_link = ""            # the current url under processing
+    text = ""                # the text loaded from url
+    url_exist = False        # a boolean for determining the url is valid or not
     if verbose:
         print(".... started processing the urls .....")
 
@@ -78,7 +78,7 @@ def multi_process_urls(_url_file, _regex_file, _max_num_workers):
         for worker_id in range(_max_num_workers):
             if index_on_regex_list == 0:
                 if not url_handler.has_data():
-                    break
+                    break                 # do not assign any more worker as we are done with the url database
                 url_link = url_handler.fetch_first()
                 print("processing url: ", url_link)
                 text, url_exist = fetch_text_from_url(url_link)
@@ -92,9 +92,9 @@ def multi_process_urls(_url_file, _regex_file, _max_num_workers):
             p.start()
 
             if url_exist:
-                index_on_regex_list += 1
+                index_on_regex_list += 1  # walk on regex list to assign worker for matching it with text from url
             else:
-                index_on_regex_list = 0
+                index_on_regex_list = 0   # load another url as this one does not exist and a worker is assigned to log
             if index_on_regex_list >= len(regex_list):
                 index_on_regex_list = 0
 

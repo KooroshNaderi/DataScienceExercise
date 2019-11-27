@@ -5,14 +5,14 @@ import signal
 
 
 def ret_error(str1, str2):
-    from difflib import SequenceMatcher
+    from difflib import SequenceMatcher  # load lib here to handle errors caused by ctrl+c
 
     s = SequenceMatcher(None, str1, str2)
     return 1 - s.ratio()
 
 
 def is_match(_worker_id, _text, _re):
-    import re
+    import re                            # load lib here to handle errors caused by ctrl+c
 
     out = {}
 
@@ -25,7 +25,7 @@ def is_match(_worker_id, _text, _re):
     x = p.search(_text)
     if x:
         out['error'] = 0
-        out['matched-string'] = 'something'#x.group(0)
+        out['matched-string'] = x.group(0)
     else:
         out['error'] = ret_error(_text, _re)
         out['matched-string'] = ''
@@ -53,6 +53,7 @@ def fetch_text_from_url(_url):
 
 
 def exit_no_error():
+    # exit with error 0 to avoid unclean comments caused by ctrl+c
     try:
         sys.exit(0)
     except SystemExit:
@@ -60,7 +61,7 @@ def exit_no_error():
 
 
 def get_time_date_format():
-    datetime.now().ctime()
+    return datetime.now().ctime()
 
 
 def os_kill_process():
